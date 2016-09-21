@@ -90,6 +90,7 @@ ENV/
 
 # data files
 /data/ICDAR-CH1/
+/data/VOCdevkit/
 
 # idea files
 .idea/
