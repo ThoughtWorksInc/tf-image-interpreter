@@ -5,12 +5,12 @@ def _parse_object(elem):
   bbox_elem = elem.find('bndbox')
   return {
     'class': elem.find('name').text.lower().strip(),
-    'bbox': {
+    'bbox': [
       float(bbox_elem.find('xmin').text) - 1,
       float(bbox_elem.find('ymin').text) - 1,
       float(bbox_elem.find('xmax').text) - 1,
       float(bbox_elem.find('ymax').text) - 1,
-    }
+    ]
   }
 
 
@@ -44,3 +44,6 @@ class ImageMeta(object):
   @property
   def objects(self):
       return self._objs
+
+  def boxes(self, f=lambda x: x):
+    return [f(o['bbox']) for o in self.objects]
