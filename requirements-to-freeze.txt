@@ -1,1 +1,5 @@
-ipython[notebook]
+numpy
+matplotlib
+scipy
+jupyter
+Pillow

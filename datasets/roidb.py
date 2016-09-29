@@ -1,7 +1,7 @@
 import os
 import pprint
 
-from meta import ImageMeta
+from datasets.meta import ImageMeta
 
 
 class RoiDb(object):
@@ -38,7 +38,7 @@ class RoiDb(object):
     return os.path.join(annotation_dir, '%s.xml' % image_id)
 
   @property
-  def rois(self):
+  def all_meta(self):
     image_ids = self._load_image_ids()
     return [self._generate_meta(image_id) for image_id in image_ids]
 
@@ -58,12 +58,14 @@ if __name__ == '__main__':
   def to_rectangles(roi):
     def rectangle(b):
       return [(b[0], b[1]), b[2] - b[0], b[3] - b[1]]
+
     return roi.boxes(rectangle)
+
 
   print(os.path.abspath(os.path.curdir))
   roidb = RoiDb('val.txt', 2007)
-  print(len(roidb.rois))
-  r = roidb.rois[0]
+  print(len(roidb.all_meta))
+  r = roidb.all_meta[0]
   pprint.pprint(r.image_path)
   pprint.pprint(r.objects)
   pprint.pprint(r.shape)
@@ -74,9 +76,9 @@ if __name__ == '__main__':
   plt.imshow(img)
   for rect in to_rectangles(r):
     plt.gca().add_patch(plt.Rectangle(
-        rect[0], rect[1],
-        rect[2], fill=False,
-        edgecolor='r', linewidth=3)
-  )
+      rect[0], rect[1],
+      rect[2], fill=False,
+      edgecolor='r', linewidth=3)
+    )
 
   plt.show()

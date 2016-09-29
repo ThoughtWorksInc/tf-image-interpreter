@@ -15,9 +15,9 @@ def _parse_object(elem):
 
 
 def _parse_shape(elem):
-  return [elem.find('width'),
-          elem.find('height'),
-          elem.find('depth')]
+  return [int(elem.find('width').text),
+          int(elem.find('height').text),
+          int(elem.find('depth').text)]
 
 
 class ImageMeta(object):
