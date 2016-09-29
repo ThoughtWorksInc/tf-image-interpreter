@@ -39,4 +39,4 @@ class BatchGenerator(object):
       bboxes[i][:4] = obj['bbox']
       bboxes[i][4] = obj['class_index']
 
-    return resized_image, scale, bboxes
+    return np.expand_dims(resized_image, 0), scale, bboxes
