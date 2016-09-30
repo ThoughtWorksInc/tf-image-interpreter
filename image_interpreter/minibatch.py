@@ -2,15 +2,13 @@ import numpy as np
 from scipy import ndimage
 
 
-image_size = 600
-
-
 class BatchGenerator(object):
   def __init__(self, roidb):
     self._roidb = roidb
     self._total = len(roidb.all_meta)
     self._cur = 0
     self._perm = np.random.permutation(self._total)
+    self._image_scale_size = 600
 
   def next_batch(self):
     if self._cur >= self._total:
@@ -29,9 +27,9 @@ class BatchGenerator(object):
     image = ndimage.imread(meta.image_path)
     height, width, _ = meta.shape
     if height > width:
-      scale = 600 / width
+      scale = self._image_scale_size / width
     else:
-      scale = 600 / height
+      scale = self._image_scale_size / height
 
     resized_image = ndimage.zoom(image, (scale, scale, 1))
     bboxes = np.empty((len(meta.objects), 5))
