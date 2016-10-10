@@ -12,7 +12,7 @@ def test_rpn():
   image_tensor = tf.placeholder(tf.float32)
   with tf.Session() as sess:
     vgg.build(image_tensor)
-    rpn.build(vgg.conv5_3)
+    rpn.build(vgg.conv5_3, None)
     init = tf.initialize_all_variables()
     sess.run(init)
 
@@ -23,7 +23,7 @@ def test_rpn():
 
     for i in range(10):
       image, scale, bboxes = batch_gen.next_batch()
-      feature_shape = tf.shape(rpn.rpn_cls_score)
+      feature_shape = tf.shape(rpn.rpn_cls_score_reshape)
       print_feat_shape = tf.Print(feature_shape, [feature_shape], summarize=5)
       sess.run(print_feat_shape, feed_dict={image_tensor: image})
 

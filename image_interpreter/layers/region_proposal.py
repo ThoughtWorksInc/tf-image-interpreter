@@ -45,7 +45,8 @@ class RpnNet(ConvNetMixin):
     #    type: "Reshape"
     #    reshape_param { shape { dim: 0 dim: 2 dim: -1 dim: 0 } }
     # }
-    self.rpn_cls_score_reshape = tf.reshape(self.rpn_cls_score, (1, 2, -1, 18), 'rpn_cls_score_reshape')
+    shape = tf.shape(self.rpn_cls_score)
+    self.rpn_cls_score_reshape = tf.reshape(self.rpn_cls_score, (shape[0], -1, shape[2], 2), 'rpn_cls_score_reshape')
 
     # layer
     # {
@@ -62,4 +63,4 @@ class RpnNet(ConvNetMixin):
     #     normalize: true
     #   }
     # }
-    self.rpn_loss_cls = tf.nn.softmax_cross_entropy_with_logits(self.rpn_cls_score_reshape, rpn_data.rpn_cls_labels)
+    # self.rpn_loss_cls = tf.nn.softmax_cross_entropy_with_logits(self.rpn_cls_score_reshape, rpn_data.rpn_cls_labels)

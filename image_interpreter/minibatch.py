@@ -31,6 +31,7 @@ class BatchGenerator(object):
     else:
       scale = self._image_scale_size / height
 
+    # TODO: the dimensions in caffe is (batch elem, channel, height, width)
     resized_image = ndimage.zoom(image, (scale, scale, 1))
     bboxes = np.empty((len(meta.objects), 5))
     for i, obj in enumerate(meta.objects):
