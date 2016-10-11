@@ -18,17 +18,37 @@ class RpnData(AnchorTargetMixin):
     width = shape[3]
 
     if self._debug:
-      height = tf.Print(height, [height], message='image height: '),
-      width = tf.Print(width, [width], message='image width: '),
+      height = tf.Print(height, [height], message='image height: ')
+      width = tf.Print(width, [width], message='image width: ')
 
     anchors = self._generate_valid_anchors(width, height)
     overlaps = self._calculate_overlaps(anchors, bboxes)
 
-    # labels = np.empty((len(inds_inside),), dtype=np.float32)
-    # labels.fill(-1)
-    # labels = tf.Variable(labels, trainable=False)
+    labels = self._generate_labels(overlaps)
 
-    return overlaps
+    return labels
+
+  def _generate_labels(self, overlaps):
+    labels = tf.Variable(tf.ones(shape=(tf.shape(overlaps)[0],), dtype=tf.float32) * -1, trainable=False,
+                         validate_shape=False)
+    gt_max_overlaps = tf.arg_max(overlaps, dimension=0)
+    anchor_max_overlaps = tf.arg_max(overlaps, dimension=1)
+    mask = tf.one_hot(anchor_max_overlaps, tf.shape(overlaps)[1], on_value=True, off_value=False)
+    max_overlaps = tf.boolean_mask(overlaps, mask)
+    if self._debug:
+      max_overlaps = tf.Print(max_overlaps, [max_overlaps])
+    labels = tf.scatter_update(labels, gt_max_overlaps, tf.ones((tf.shape(gt_max_overlaps)[0],)))
+    # TODO: extract config object
+    over_threshold_mask = tf.reshape(tf.where(max_overlaps > 0.5), (-1,))
+    if self._debug:
+      over_threshold_mask = tf.Print(over_threshold_mask, [over_threshold_mask], message='over threshold index : ')
+    labels = tf.scatter_update(labels, over_threshold_mask, tf.ones((tf.shape(over_threshold_mask)[0],)))
+    # TODO: support clobber positive in the origin implement
+    below_threshold_mask = tf.reshape(tf.where(max_overlaps < 0.3), (-1,))
+    if self._debug:
+      below_threshold_mask = tf.Print(below_threshold_mask, [below_threshold_mask], message='below threshold index : ')
+    labels = tf.scatter_update(labels, below_threshold_mask, tf.zeros((tf.shape(below_threshold_mask)[0],)))
+    return labels
 
   def _generate_valid_anchors(self, width, height):
     shifts = self._generate_shifts(width, height)
@@ -144,10 +164,10 @@ class RpnData(AnchorTargetMixin):
 
 if __name__ == '__main__':
   with tf.Session() as sess:
-    rpn_data = RpnData(debug=False)
+    rpn_data = RpnData(debug=True)
     test_image = tf.reshape(tf.constant(np.ones((600, 400))), (1, 1, 600, 400))
     fake_bboxes = tf.constant([
-      [10, 10, 50, 50],
+      [10, 10, 150, 150],
       [70, 10, 150, 50],
       [10, 70, 50, 150],
       [150, 10, 70, 50],
