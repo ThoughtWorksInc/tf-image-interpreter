@@ -16,6 +16,52 @@ class RpnData(AnchorTargetMixin):
     # height, width = shape[-2:]
     height = shape[2]
     width = shape[3]
+
+    if self._debug:
+      height = tf.Print(height, [height], message='image height: '),
+      width = tf.Print(width, [width], message='image width: '),
+
+    anchors = self._generate_valid_anchors(width, height)
+    overlaps = self._calculate_overlaps(anchors, bboxes)
+
+    # labels = np.empty((len(inds_inside),), dtype=np.float32)
+    # labels.fill(-1)
+    # labels = tf.Variable(labels, trainable=False)
+
+    return overlaps
+
+  def _generate_valid_anchors(self, width, height):
+    shifts = self._generate_shifts(width, height)
+    all_anchors = self._generate_all_anchors(shifts)
+    anchors = self._filter_inside_anchors(all_anchors, height, width)
+    return anchors
+
+  def _filter_inside_anchors(self, all_anchors, height, width):
+    # filter anchors
+    inds_inside = tf.where(
+      (all_anchors[:, 0] > 0) &
+      (all_anchors[:, 1] > 0) &
+      (all_anchors[:, 2] < width) &
+      (all_anchors[:, 3] < height)
+    )
+    if self._debug:
+      inds_inside = tf.Print(inds_inside, [tf.shape(inds_inside)], message='inside anchors: ')
+    anchors = tf.gather(all_anchors, inds_inside)
+    return anchors
+
+  def _generate_all_anchors(self, shifts):
+    num_anchors = self._anchors.shape[0]
+    num_shifts = tf.shape(shifts)[0]
+    all_anchors = (self._anchors.reshape(1, num_anchors, 4) +
+                   tf.transpose(tf.reshape(shifts, (1, num_shifts, 4)), perm=(1, 0, 2)))
+    all_anchors = tf.reshape(all_anchors, (num_shifts * num_anchors, 4))
+
+    if self._debug:
+      num_all_anchors = num_shifts * num_anchors
+      tf.Print(num_all_anchors, [num_all_anchors], message='all anchor: ')
+    return all_anchors
+
+  def _generate_shifts(self, width, height):
     shift_x = tf.range(0, height) * self._feat_stride
     shift_y = tf.range(0, width) * self._feat_stride
     shift_x, shift_y = tf.meshgrid(shift_x, shift_y, indexing='ij')
@@ -26,48 +72,12 @@ class RpnData(AnchorTargetMixin):
        tf.reshape(shift_y, (-1,))],
       axis=0
     ))
+    return shifts
 
-    num_anchors = self._anchors.shape[0]
-    num_shifts = tf.shape(shifts)[0]
-    all_anchors = (self._anchors.reshape(1, num_anchors, 4) +
-                   tf.transpose(tf.reshape(shifts, (1, num_shifts, 4)), perm=(1, 0, 2)))
-
-    all_anchors = tf.reshape(all_anchors, (num_shifts * num_anchors, 4))
-
-    num_all_anchors = num_shifts * num_anchors
-
-    # filter anchors
-    inds_inside = tf.where(
-      (all_anchors[:, 0] > 0) &
-      (all_anchors[:, 1] > 0) &
-      (all_anchors[:, 2] < width) &
-      (all_anchors[:, 3] < height)
-    )
-
+  def _calculate_overlaps(self, anchors, bboxes):
     if self._debug:
-      with tf.control_dependencies(
-          [
-            tf.Print(height, [height], message='image height: '),
-            tf.Print(width, [width], message='image width: '),
-            tf.Print(num_all_anchors, [num_all_anchors], message='all anchors: '),
-            tf.Print(inds_inside, [tf.shape(inds_inside)], message='inside anchors: '),
-          ]
-      ):
-        inds_inside = tf.Print(inds_inside, [inds_inside], message="index of inside bbox", summarize=20)
+      bboxes = tf.Print(bboxes, [tf.shape(bboxes), bboxes], message='calculating overlaps, bbox: ', summarize=10)
 
-    anchors = tf.gather(all_anchors, inds_inside)
-
-    # labels = np.empty((len(inds_inside),), dtype=np.float32)
-    # labels.fill(-1)
-    # labels = tf.Variable(labels, trainable=False)
-
-    # calculate overlaps
-    bboxes = tf.Print(bboxes, [tf.shape(bboxes), bboxes], summarize=10)
-    overlaps = self._overlaps(anchors, bboxes)
-
-    return overlaps
-
-  def _overlaps(self, anchors, bboxes):
     num_anchors = tf.shape(anchors)[0]
     num_bboxes = tf.shape(bboxes)[0]
 
@@ -134,7 +144,7 @@ class RpnData(AnchorTargetMixin):
 
 if __name__ == '__main__':
   with tf.Session() as sess:
-    rpn_data = RpnData(debug=True)
+    rpn_data = RpnData(debug=False)
     test_image = tf.reshape(tf.constant(np.ones((600, 400))), (1, 1, 600, 400))
     fake_bboxes = tf.constant([
       [10, 10, 50, 50],
@@ -146,5 +156,6 @@ if __name__ == '__main__':
     ], dtype=tf.int32)
     test_overlaps = rpn_data.generate(test_image, None, bboxes=fake_bboxes)
     sess.run(tf.initialize_all_variables())
-    print_op = tf.Print(test_overlaps, [tf.shape(test_overlaps), tf.where(test_overlaps > 0), test_overlaps], summarize=10)
+    print_op = tf.Print(test_overlaps, [tf.shape(test_overlaps), tf.where(test_overlaps > 0), test_overlaps],
+                        summarize=10)
     sess.run(print_op)
