@@ -14,8 +14,8 @@ class RpnData(AnchorTargetMixin):
     # TODO: NotImplementedError: Negative start indices are not currently supported
     # height, width = shape[-2:]
     # height, width = shape[-2:]
-    height = shape[2]
-    width = shape[3]
+    height = shape[1]
+    width = shape[2]
 
     if self._debug:
       height = tf.Print(height, [height], message='image height: ')
@@ -87,8 +87,8 @@ class RpnData(AnchorTargetMixin):
     return all_anchors
 
   def _generate_shifts(self, width, height):
-    shift_x = tf.range(0, height) * self._feat_stride
-    shift_y = tf.range(0, width) * self._feat_stride
+    shift_x = tf.range(0, width) * self._feat_stride
+    shift_y = tf.range(0, height) * self._feat_stride
     shift_x, shift_y = tf.meshgrid(shift_x, shift_y, indexing='ij')
     shifts = tf.transpose(tf.pack(
       [tf.reshape(shift_x, (-1,)),
@@ -178,7 +178,7 @@ class RpnData(AnchorTargetMixin):
 if __name__ == '__main__':
   with tf.Session() as sess:
     rpn_data = RpnData(debug=True)
-    test_image = tf.reshape(tf.constant(np.ones((600, 400))), (1, 1, 600, 400))
+    test_image = tf.reshape(tf.constant(np.ones((600, 400))), (1, 600, 400, 1))
     fake_bboxes = tf.constant([
       [10, 10, 150, 150],
       [70, 10, 150, 50],
