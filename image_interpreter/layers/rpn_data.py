@@ -26,6 +26,11 @@ class RpnData(AnchorTargetMixin):
 
     labels = self._generate_labels(overlaps)
 
+    labels = self._subsample_positive(labels)
+    labels = self._subsample_negative(labels)
+
+
+
     return labels
 
   def _generate_labels(self, overlaps):
@@ -160,6 +165,14 @@ class RpnData(AnchorTargetMixin):
       shape_invariants=[ia.get_shape(), tf.TensorShape([None, 6]), num_bboxes.get_shape()]
     )
     return generated_overlaps
+
+  def _subsample_positive(self, labels):
+    # TODO: not implemented
+    return labels
+
+  def _subsample_negative(self, labels):
+    # TODO: not implemented
+    return labels
 
 
 if __name__ == '__main__':
