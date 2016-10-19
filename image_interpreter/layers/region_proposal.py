@@ -19,7 +19,7 @@ class RpnNet(ConvNetMixin):
     #     bias_filler { type: "constant" value: 0 }
     #   }
     # }
-    self.rpn_output = self._conv_layer_with_relu(feature_map, (3, 3), 512, 'rpn_conv')
+    self.rpn_output = self._conv_layer_with_relu(feature_map, (3, 3), 512, 'rpn_conv', padding='VALID')
 
     # layer
     # {

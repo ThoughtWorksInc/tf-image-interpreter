@@ -5,9 +5,7 @@ from image_interpreter.layers.common import AnchorTargetMixin
 
 class RpnData(AnchorTargetMixin):
   def __init__(self, debug=False):
-    self._anchors = self.generate_anchors(np.array([8, 16, 32]))
-    self._feat_stride = 16
-    self._debug = debug
+    super().__init__(debug=debug)
 
   def generate(self, image, scale, bboxes):
     shape = tf.shape(image)
@@ -28,8 +26,6 @@ class RpnData(AnchorTargetMixin):
 
     labels = self._subsample_positive(labels)
     labels = self._subsample_negative(labels)
-
-
 
     return labels
 
@@ -73,31 +69,6 @@ class RpnData(AnchorTargetMixin):
       inds_inside = tf.Print(inds_inside, [tf.shape(inds_inside)], message='inside anchors: ')
     anchors = tf.gather(all_anchors, inds_inside)
     return anchors
-
-  def _generate_all_anchors(self, shifts):
-    num_anchors = self._anchors.shape[0]
-    num_shifts = tf.shape(shifts)[0]
-    all_anchors = (self._anchors.reshape(1, num_anchors, 4) +
-                   tf.transpose(tf.reshape(shifts, (1, num_shifts, 4)), perm=(1, 0, 2)))
-    all_anchors = tf.reshape(all_anchors, (num_shifts * num_anchors, 4))
-
-    if self._debug:
-      num_all_anchors = num_shifts * num_anchors
-      tf.Print(num_all_anchors, [num_all_anchors], message='all anchor: ')
-    return all_anchors
-
-  def _generate_shifts(self, width, height):
-    shift_x = tf.range(0, width) * self._feat_stride
-    shift_y = tf.range(0, height) * self._feat_stride
-    shift_x, shift_y = tf.meshgrid(shift_x, shift_y, indexing='ij')
-    shifts = tf.transpose(tf.pack(
-      [tf.reshape(shift_x, (-1,)),
-       tf.reshape(shift_y, (-1,)),
-       tf.reshape(shift_x, (-1,)),
-       tf.reshape(shift_y, (-1,))],
-      axis=0
-    ))
-    return shifts
 
   def _calculate_overlaps(self, anchors, bboxes):
     if self._debug:

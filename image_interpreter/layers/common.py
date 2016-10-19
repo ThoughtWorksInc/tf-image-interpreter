@@ -3,28 +3,13 @@ import numpy as np
 
 
 class ConvNetMixin(object):
-  def _conv_layer_with_relu(self, bottom, filter_size, filter_num, scope_name, bottom_channel=None):
-    if not bottom_channel:
-      _, _, _, bottom_channel = bottom.get_shape().as_list()
+  def _conv_layer_with_relu(self, bottom, filter_size, filter_num, scope_name, bottom_channel=None, padding='SAME'):
+    out = self._conv_layer(bottom, filter_size, filter_num, scope_name, bottom_channel, padding)
     with tf.variable_scope(scope_name):
-      kernel = tf.Variable(
-        tf.truncated_normal([*filter_size, bottom_channel, filter_num], dtype=tf.float32, stddev=1e-1),
-        trainable=False,
-        name='weights'
-      )
-
-      conv = tf.nn.conv2d(bottom, kernel, [1, 1, 1, 1], padding='SAME')
-      biases = tf.Variable(
-        tf.constant(0.0, shape=[filter_num], dtype=tf.float32),
-        trainable=True,
-        name='bias'
-      )
-      out = tf.nn.bias_add(conv, biases)
-
       relu = tf.nn.relu(out, name=scope_name)
       return relu
 
-  def _conv_layer(self, bottom, filter_size, filter_num, scope_name, bottom_channel=None):
+  def _conv_layer(self, bottom, filter_size, filter_num, scope_name, bottom_channel=None, padding='SAME'):
     if not bottom_channel:
       _, _, _, bottom_channel = bottom.get_shape().as_list()
     with tf.variable_scope(scope_name):
@@ -34,7 +19,7 @@ class ConvNetMixin(object):
         name='weights'
       )
 
-      conv = tf.nn.conv2d(bottom, kernel, [1, 1, 1, 1], padding='SAME')
+      conv = tf.nn.conv2d(bottom, kernel, [1, 1, 1, 1], padding=padding)
       biases = tf.Variable(
         tf.constant(0.0, shape=[filter_num], dtype=tf.float32),
         trainable=True,
@@ -55,6 +40,11 @@ class ConvNetMixin(object):
 
 
 class AnchorTargetMixin(object):
+  def __init__(self, debug):
+    self._anchors = self.generate_anchors(scales=(8, 16, 32))
+    self._debug = debug
+    self._feat_stride = 16
+
   def generate_anchors(self, scales):
     base_size = 16
     ratios = np.array([0.5, 1, 2])
@@ -81,6 +71,31 @@ class AnchorTargetMixin(object):
                          y_ctr + 0.5 * (hs - 1)))
     return anchors
 
+  def _generate_shifts(self, width, height):
+    shift_x = tf.range(0, height) * self._feat_stride
+    shift_y = tf.range(0, width) * self._feat_stride
+    shift_x, shift_y = tf.meshgrid(shift_x, shift_y, indexing='ij')
+    shifts = tf.transpose(tf.pack(
+      [tf.reshape(shift_x, (-1,)),
+       tf.reshape(shift_y, (-1,)),
+       tf.reshape(shift_x, (-1,)),
+       tf.reshape(shift_y, (-1,))],
+      axis=0
+    ))
+    return shifts
+
+  def _generate_all_anchors(self, shifts):
+    num_anchors = self._anchors.shape[0]
+    num_shifts = tf.shape(shifts)[0]
+    all_anchors = (self._anchors.reshape(1, num_anchors, 4) +
+                   tf.transpose(tf.reshape(shifts, (1, num_shifts, 4)), perm=(1, 0, 2)))
+    all_anchors = tf.reshape(all_anchors, (num_shifts * num_anchors, 4))
+
+    if self._debug:
+      num_all_anchors = num_shifts * num_anchors
+      tf.Print(num_all_anchors, [num_all_anchors], message='all anchor: ')
+    return all_anchors
+
 
 if __name__ == '__main__':
   anchors = AnchorTargetMixin().generate_anchors(np.array([8, 16, 32]))
@@ -96,3 +111,8 @@ if __name__ == '__main__':
    [-168. -360.  183.  375.]]
   """
   print(anchors)
+
+
+def arg_sort_op(arr):
+  args = arr.argsort()[::-1]
+  return args
