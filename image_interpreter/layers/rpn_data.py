@@ -20,7 +20,7 @@ class RpnData(AnchorTargetMixin):
       width = tf.Print(width, [width], message='image width: ')
 
     anchors = self._generate_valid_anchors(width, height)
-    overlaps = self._calculate_overlaps(anchors, bboxes)
+    overlaps = self._calculate_overlaps(tf.cast(anchors, dtype=tf.float32), tf.cast(bboxes, dtype=tf.float32))
 
     labels = self._generate_labels(overlaps)
 
@@ -69,73 +69,6 @@ class RpnData(AnchorTargetMixin):
       inds_inside = tf.Print(inds_inside, [tf.shape(inds_inside)], message='inside anchors: ')
     anchors = tf.gather(all_anchors, inds_inside)
     return anchors
-
-  def _calculate_overlaps(self, anchors, bboxes):
-    if self._debug:
-      bboxes = tf.Print(bboxes, [tf.shape(bboxes), bboxes], message='calculating overlaps, bbox: ', summarize=10)
-
-    num_anchors = tf.shape(anchors)[0]
-    num_bboxes = tf.shape(bboxes)[0]
-
-    if self._debug:
-      num_anchors = tf.Print(num_anchors, [num_anchors, num_bboxes])
-      num_bboxes = tf.Print(num_bboxes, [num_bboxes])
-
-    ia = tf.constant(0)
-
-    def cond_outer(i, overlaps, num_bboxes):
-      return tf.less(i, num_anchors)
-
-    def body_outer(i, overlaps, num_bboxes):
-      # TODO: 看起来while loop内部引用外部变量，不能识别他们的依赖关系
-      anchor = anchors[i]
-      anchor = tf.reshape(anchor, (4,))
-      if self._debug:
-        anchor = tf.Print(anchor, [tf.shape(anchor), anchor], message='anchor')
-      anchor_area = (anchor[2] - anchor[0] + 1) * (anchor[3] - anchor[1] + 1)
-      ib = tf.constant(0)
-
-      def cond_inner(j, row, anchor, anchor_area):
-        return tf.less(j, num_bboxes)
-
-      def body_inner(j, row, anchor, anchor_area):
-        bbox = bboxes[j]
-        uw = tf.minimum(anchor[2], bbox[2]) - tf.maximum(anchor[0], bbox[0])
-        uh = tf.minimum(anchor[3], bbox[3]) - tf.maximum(anchor[1], bbox[1])
-
-        if self._debug:
-          uw = tf.Print(uw, [i, j, uw], message='union width')
-          uh = tf.Print(uh, [i, j, uh], message='union height')
-
-        result = tf.cond(
-          tf.logical_and(tf.less(0, uw),
-                         tf.less(0, uh)),
-          lambda: tf.cast(uw * uh / (anchor_area + (bbox[2] - anchor[0] + 1) * (bbox[3] - bbox[1] + 1) - uw * uh),
-                          tf.float32),
-          lambda: tf.constant(0, dtype=tf.float32)
-        )
-
-        if self._debug:
-          j = tf.Print(j, [j], message='j')
-        return j + 1, tf.concat(0, [row, [result]]), anchor, anchor_area
-
-      _, generated_row, _, _ = tf.while_loop(
-        cond_inner,
-        body_inner,
-        loop_vars=[ib, tf.constant([]), anchor, anchor_area],
-        shape_invariants=[ib.get_shape(), tf.TensorShape([None]), anchor.get_shape(), anchor_area.get_shape()]
-      )
-      if self._debug:
-        i = tf.Print(i, [i], message='i')
-      return i + 1, tf.concat(0, [overlaps, [generated_row]]), num_bboxes
-
-    _, generated_overlaps, _ = tf.while_loop(
-      cond_outer,
-      body_outer,
-      loop_vars=[ia, tf.reshape(tf.constant([]), (0, 6)), num_bboxes],
-      shape_invariants=[ia.get_shape(), tf.TensorShape([None, 6]), num_bboxes.get_shape()]
-    )
-    return generated_overlaps
 
   def _subsample_positive(self, labels):
     # TODO: not implemented
